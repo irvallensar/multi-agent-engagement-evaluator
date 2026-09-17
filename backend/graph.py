@@ -3,7 +3,7 @@ from typing import Annotated, TypedDict, Dict, Any
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import MemorySaver
 import sqlite3
 
 # --- IMPORTS FROM YOUR MODULAR FILES ---
@@ -105,6 +105,6 @@ builder.add_edge("aggregator", END)
 
 # Compile with SQLite persistence
 conn = sqlite3.connect("database.sqlite", check_same_thread=False)
-memory = SqliteSaver(conn)
+checkpointer = MemorySaver()
 
-evaluator_graph = builder.compile(checkpointer=memory)
+evaluator_graph = graph.compile(checkpointer=checkpointer)
