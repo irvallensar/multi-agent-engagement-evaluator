@@ -23,7 +23,10 @@ export default function Home() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true" // Add this exact line
+        },
         body: JSON.stringify({ thread_id: threadId, text }),
       });
 
