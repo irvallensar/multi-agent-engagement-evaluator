@@ -24,7 +24,7 @@ export default function Home() {
     setError("");
 
     try {
-      const res = await fetch("process.env.http://127.0.0.1:8001/evaluate", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thread_id: threadId, text }),
@@ -49,7 +49,7 @@ export default function Home() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8001/resume", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thread_id: threadId, human_feedback: humanFeedback }),
