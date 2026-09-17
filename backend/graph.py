@@ -1,7 +1,6 @@
 import operator
 from typing import Annotated, TypedDict, Dict, Any
 from langchain_groq import ChatGroq
-from langgraph import graph
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt
 from langgraph.checkpoint.memory import MemorySaver
@@ -108,4 +107,4 @@ builder.add_edge("aggregator", END)
 conn = sqlite3.connect("database.sqlite", check_same_thread=False)
 checkpointer = MemorySaver()
 
-evaluator_graph = graph.compile(checkpointer=checkpointer)
+evaluator_graph = builder.compile(checkpointer=checkpointer)
