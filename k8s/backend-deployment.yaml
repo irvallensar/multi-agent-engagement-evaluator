@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evaluator-backend
+  labels:
+    app: evaluator-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: evaluator-backend
+  template:
+    metadata:
+      labels:
+        app: evaluator-backend
+    spec:
+      containers:
+      - name: fastapi-langgraph
+        image: your-dockerhub-username/evaluator-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-secrets
+              key: groq-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
