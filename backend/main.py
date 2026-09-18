@@ -1,11 +1,10 @@
 from pydantic import BaseModel
 from langgraph.types import Command
-from graph import evaluator_graph
 from fastapi import Request
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from graph import app_graph
+from graph import evaluator_graph 
 
 app = FastAPI()
 
@@ -25,14 +24,15 @@ class EvaluateRequest(BaseModel):
 @app.post("/evaluate")
 async def evaluate(request: Request):
     payload = await request.json()
-    config = {"configurable": {"thread_id": payload["thread_id"]}}
+    config = {"configurable": {"thread_id": payload.get("thread_id", "default_thread")}}
     
-    # Extract text from the payload and pass the config argument
-    final_state = app_graph.invoke({"input": payload["text"]}, config=config)
+    # Pass academic_text to match the EvaluationState TypedDict
+    final_state = evaluator_graph.invoke({"academic_text": payload["text"]}, config=config)
 
+    # Extract final_scorecard to match the aggregator node output
     return {
         "status": "complete",
-        "scorecard": final_state["scorecard"]
+        "scorecard": final_state["final_scorecard"] 
     }
 
 class ResumeRequest(BaseModel):
