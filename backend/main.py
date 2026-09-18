@@ -5,6 +5,7 @@ from fastapi import Request
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from graph import app_graph
 
 app = FastAPI()
 
@@ -26,15 +27,12 @@ async def evaluate(request: Request):
     payload = await request.json()
     config = {"configurable": {"thread_id": payload["thread_id"]}}
     
-    # .invoke() runs the graph from start to finish without pausing
-    final_state = evaluator_graph.invoke(
-        {"academic_text": payload["text"]}, 
-        config=config
-    )
-    
+    # Extract text from the payload and pass the config argument
+    final_state = app_graph.invoke({"input": payload["text"]}, config=config)
+
     return {
-        "status": "complete", 
-        "scorecard": final_state.get("scorecard", "Evaluation complete.")
+        "status": "complete",
+        "scorecard": final_state["scorecard"]
     }
 
 class ResumeRequest(BaseModel):
