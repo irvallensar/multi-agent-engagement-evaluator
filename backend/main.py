@@ -26,15 +26,18 @@ async def evaluate(request: Request):
     payload = await request.json()
     config = {"configurable": {"thread_id": payload.get("thread_id", "default_thread")}}
     
-    # Pass academic_text to match the EvaluationState TypedDict
     final_state = evaluator_graph.invoke({"academic_text": payload["text"]}, config=config)
 
-    # Extract final_scorecard to match the aggregator node output
+    # If the graph paused at the human review node, return the pending critiques
+    if "final_scorecard" not in final_state:
+        critiques = final_state.get("critiques", ["No critiques generated."])
+        return {
+            "status": "pending_human_review",
+            "scorecard": "## Graph paused for human review.\n\n**Pending Critiques:**\n" + "\n\n".join(critiques)
+        }
+
+    # If the graph completed, return the final scorecard
     return {
         "status": "complete",
         "scorecard": final_state["final_scorecard"] 
     }
-
-class ResumeRequest(BaseModel):
-    thread_id: str
-    human_feedback: str
