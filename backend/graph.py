@@ -91,16 +91,15 @@ builder = StateGraph(EvaluationState)
 
 builder.add_node("rhetorical_critic", rhetorical_critic)
 builder.add_node("engagement_critic", engagement_critic)
-builder.add_node("human_review", human_review_node)
 builder.add_node("aggregator", aggregator)
 
 builder.add_edge(START, "rhetorical_critic")
 builder.add_edge(START, "engagement_critic")
 
-builder.add_edge("rhetorical_critic", "human_review")
-builder.add_edge("engagement_critic", "human_review")
+# Route critics directly to the aggregator, bypassing human review
+builder.add_edge("rhetorical_critic", "aggregator")
+builder.add_edge("engagement_critic", "aggregator")
 
-builder.add_edge("human_review", "aggregator")
 builder.add_edge("aggregator", END)
 
 # Compile with SQLite persistence
