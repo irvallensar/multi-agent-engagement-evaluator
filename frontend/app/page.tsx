@@ -3,11 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, CheckCircle, Loader2, Upload } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import * as mammoth from "mammoth";
-
-// Set up PDF.js worker
-import * as pdfjsLib from "pdfjs-dist";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function Home() {
   const [step, setStep] = useState<"idle" | "evaluating" | "complete">("idle");
@@ -27,39 +22,53 @@ export default function Home() {
   if (!file) return;
   setError("");
 
-  const fileExt = file.name.split(".").pop()?.toLowerCase();
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
 
-  try {
-    if (fileExt === "txt" || fileExt === "md") {
-      const extractedText = await file.text();
-      setText(extractedText);
-    } else if (fileExt === "docx") {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      setText(result.value);
-    } else if (fileExt === "pdf") {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = "";
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item: any) => item.str)
-          .join(" ");
-        fullText += pageText + "\n\n";
+    try {
+      if (fileExt === "txt" || fileExt === "md") {
+        const extractedText = await file.text();
+        setText(extractedText);
+      } else if (fileExt === "docx") {
+        // Dynamically import mammoth only in the browser
+        const mammoth = await import("mammoth");
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setText(result.value);
+      } else if (fileExt === "pdf") {
+        // Dynamically import PDF.js only in the browser
+        const pdfjsLib = await import("pdfjs-dist");
+        
+        // Note: pdfjs-dist v4 uses .mjs for the worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => item.str)
+            .join(" ");
+          fullText += pageText + "\n\n";
+        }
+        setText(fullText.trim());
+      } else {
+        setError("Unsupported file type. Please upload a .txt, .docx, or .pdf file.");
       }
-      setText(fullText.trim());
-    } else {
-      setError("Unsupported file type. Please upload a .txt, .docx, or .pdf file.");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to extract text from document. Ensure the file is not corrupted or password protected.");
     }
-  } catch (err) {
-    setError("Failed to extract text from document.");
-  }
 
-  if (fileInputRef.current) fileInputRef.current.value = "";
-};
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleEvaluate = async () => {
     if (!text.trim()) return;
@@ -184,4 +193,4 @@ export default function Home() {
       </div>
     </main>
   );
-}
+}}
