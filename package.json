@@ -3,6 +3,8 @@
     "@tailwindcss/typography": "^0.5.20"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "mammoth": "^1.12.3",
     "pdfjs-dist": "^5.6.205"
   }

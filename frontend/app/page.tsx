@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Play, CheckCircle, Loader2, Upload, Target } from "lucide-react";
+import { Play, CheckCircle, Loader2, Upload, Target, Download } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export default function Home() {
@@ -11,6 +11,7 @@ export default function Home() {
   const [scorecard, setScorecard] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,8 +62,37 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleExportPDF = () => {
-    window.print();
+  const handleExportPDF = async () => {
+    const element = document.getElementById("scorecard-container");
+    if (!element) return;
+    
+    setIsExporting(true);
+    
+    try {
+      // Dynamic imports prevent Next.js SSR build errors
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: "#ffffff"
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
+    } catch (err) {
+      console.error("Failed to generate PDF", err);
+      setError("Failed to generate PDF document.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleEvaluate = async () => {
@@ -165,41 +195,46 @@ export default function Home() {
               Final Aggregated Scorecard
             </h2>
             
-            <div className="bg-white p-8 rounded-md border text-neutral-800 prose prose-neutral max-w-none">
-              <ReactMarkdown>{scorecard}</ReactMarkdown>
+            {/* Target Container for PDF Export */}
+            <div id="scorecard-container" className="bg-white p-8 rounded-md border">
+              <div className="text-neutral-800 prose prose-neutral max-w-none">
+                <ReactMarkdown>{scorecard}</ReactMarkdown>
+              </div>
+
+              {tags.length > 0 && (
+                <div className="mt-8 border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-green-600" />
+                    Discourse Span Analysis
+                  </h3>
+                  <div className="space-y-2 text-sm font-mono">
+                    {tags.map((tag, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded-md border ${
+                          tag.toUpperCase().includes("HETEROGLOSSIC") 
+                            ? "bg-blue-50 border-blue-200 text-blue-900" 
+                            : tag.toUpperCase().includes("MONOGLOSSIC") 
+                            ? "bg-orange-50 border-orange-200 text-orange-900"
+                            : "bg-gray-50 border-gray-200 text-gray-800"
+                        }`}
+                      >
+                        {tag}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {tags.length > 0 && (
-              <div className="mt-8 border-t border-green-200 pt-6">
-                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-green-600" />
-                  Discourse Span Analysis
-                </h3>
-                <div className="space-y-2 text-sm font-mono">
-                  {tags.map((tag, index) => (
-                    <div 
-                      key={index} 
-                      className={`p-3 rounded-md border ${
-                        tag.toUpperCase().includes("HETEROGLOSSIC") 
-                          ? "bg-blue-50 border-blue-200 text-blue-900" 
-                          : tag.toUpperCase().includes("MONOGLOSSIC") 
-                          ? "bg-orange-50 border-orange-200 text-orange-900"
-                          : "bg-white border-gray-200 text-gray-800"
-                      }`}
-                    >
-                      {tag}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end gap-4 print:hidden">
+            <div className="mt-6 flex justify-end gap-4">
               <button
                 onClick={handleExportPDF}
-                className="bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 transition-colors"
+                disabled={isExporting}
+                className="flex items-center gap-2 bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 disabled:opacity-50 transition-colors"
               >
-                Export to PDF
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isExporting ? "Generating PDF..." : "Download PDF"}
               </button>
               <button
                 onClick={() => {
