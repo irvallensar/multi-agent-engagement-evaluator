@@ -3,6 +3,7 @@ from typing import Annotated, TypedDict
 from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
+from transformers import pipeline
 
 # ==========================================
 # 1. LANGGRAPH STATE
@@ -24,6 +25,9 @@ guardrail_prompt = PromptTemplate.from_template(
 )
 guardrail_chain = guardrail_prompt | llm
 
+# Load local PyTorch sequence tagger
+sequence_tagger = pipeline("text-classification", model="./your-local-da-roberta-path", return_all_scores=True)
+
 # ==========================================
 # 3. NODE FUNCTIONS
 # ==========================================
@@ -38,39 +42,62 @@ def guardrail_agent(state: EvaluationState):
 
 
 def rhetorical_critic(state: EvaluationState):
-    # ====================================================
-    # [PASTE EXISTING RHETORICAL CRITIC LOGIC HERE]
-    # ====================================================
-    pass
+    rhetorical_prompt = PromptTemplate.from_template(
+        "Analyze the rhetorical structure of this academic text. Focus on logical progression and argumentation.\n\nText: {text}"
+    )
+    chain = rhetorical_prompt | llm
+    response = chain.invoke({"text": state["academic_text"]})
+    return {"critiques": [f"Rhetorical Critique: {response.content}"]}
 
 
 def engagement_critic(state: EvaluationState):
-    # ====================================================
-    # [PASTE EXISTING DA-ROBERTA PYTORCH LOGIC HERE]
-    # ====================================================
-    pass
+    text = state["academic_text"]
+    
+    # Process text through the PyTorch model
+    results = sequence_tagger(text)
+    
+    # Extract tags (assuming standard formatting from the custom model)
+    detected_tags = []
+    for prediction in results[0]:
+        if prediction['score'] > 0.5:
+            label = prediction['label'].upper()
+            if "HETEROGLOSSIC" in label or "MONOGLOSSIC" in label:
+                detected_tags.append(f"{label}: Confirmed in text span")
+    
+    # Ensure empty arrays are handled if no tags are found
+    if not detected_tags:
+        return {"critiques": []}
+        
+    return {"critiques": detected_tags}
 
 
 def aggregator(state: EvaluationState):
     if state.get("status") == "rejected":
         return {"final_scorecard": state["final_scorecard"]}
         
-    # ====================================================
-    # [PASTE EXISTING GROQ AGGREGATOR LOGIC HERE]
-    # ====================================================
-    pass
+    aggregator_prompt = PromptTemplate.from_template(
+        "Synthesize the following critiques into a final, professional academic scorecard. "
+        "Use markdown formatting with sections for Executive Summary, Discourse & Engagement, and Actionable Revisions.\n\n"
+        "Critiques:\n{critiques}\n\nOriginal Text:\n{text}"
+    )
+    chain = aggregator_prompt | llm
+    
+    formatted_critiques = "\n".join(state["critiques"])
+    response = chain.invoke({
+        "critiques": formatted_critiques,
+        "text": state["academic_text"]
+    })
+    
+    return {"final_scorecard": response.content}
 
 # ==========================================
-# 4. ROUTING LOGIC
+# 4. ROUTING LOGIC & GRAPH ASSEMBLY
 # ==========================================
 def guardrail_router(state: EvaluationState):
     if state.get("status") == "rejected":
-        return "aggregator" # Bypasses PyTorch entirely
+        return "aggregator" 
     return ["rhetorical_critic", "engagement_critic"]
 
-# ==========================================
-# 5. GRAPH ASSEMBLY
-# ==========================================
 workflow = StateGraph(EvaluationState)
 
 workflow.add_node("guardrail_agent", guardrail_agent)
@@ -88,5 +115,4 @@ workflow.add_edge("rhetorical_critic", "aggregator")
 workflow.add_edge("engagement_critic", "aggregator")
 workflow.add_edge("aggregator", END)
 
-# Compiles the graph so main.py can import it
 builder = workflow.compile()

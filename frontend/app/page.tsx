@@ -55,17 +55,21 @@ export default function Home() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to extract text from document. Ensure the file is not corrupted or password protected.");
+      setError("Failed to extract text from document.");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleExportPDF = () => {
+    window.print();
   };
 
   const handleEvaluate = async () => {
     if (!text.trim()) return;
     setStep("evaluating");
     setError("");
-    setTags([]); // Clear previous tags
+    setTags([]); 
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
@@ -120,7 +124,7 @@ export default function Home() {
                   className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-black transition-colors"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload Document (.txt, .pdf, .docx)
+                  Upload Document
                 </button>
               </div>
             </div>
@@ -149,7 +153,7 @@ export default function Home() {
             <Loader2 className="w-10 h-10 animate-spin text-black" />
             <h2 className="text-xl font-semibold">Evaluating Discourse Markers...</h2>
             <p className="text-neutral-500 max-w-sm">
-              The pipeline is analyzing the manuscript and synthesizing the critique. This process takes approximately 15–30 seconds.
+              The pipeline is analyzing the manuscript and synthesizing the critique.
             </p>
           </section>
         )}
@@ -190,14 +194,20 @@ export default function Home() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-4 print:hidden">
+              <button
+                onClick={handleExportPDF}
+                className="bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 transition-colors"
+              >
+                Export to PDF
+              </button>
               <button
                 onClick={() => {
                   setStep("idle");
                   setText("");
                   setThreadId(`session-${Math.random().toString(36).substring(2, 9)}`);
                 }}
-                className="bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 transition-colors"
+                className="bg-black text-white px-6 py-2 rounded-md hover:bg-neutral-800 transition-colors"
               >
                 Evaluate New Submission
               </button>
