@@ -68,7 +68,7 @@ export default function Home() {
     setTags([]); // Clear previous tags
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/evaluate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
