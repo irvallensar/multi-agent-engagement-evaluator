@@ -9,6 +9,7 @@ export default function Home() {
   const [threadId, setThreadId] = useState("");
   const [text, setText] = useState("");
   const [scorecard, setScorecard] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +80,7 @@ export default function Home() {
       
       const data = await res.json();
       setScorecard(data.scorecard || "");
+      setTags(data.tags || []);
       setStep("complete");
     } catch (err: any) {
       setError(err.message);
