@@ -11,16 +11,10 @@ export default function Home() {
   const [scorecard, setScorecard] = useState("");
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
 
   useEffect(() => {
     setThreadId(`session-${Math.random().toString(36).substring(2, 9)}`);
   }, []);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  setError("");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,16 +28,12 @@ export default function Home() {
         const extractedText = await file.text();
         setText(extractedText);
       } else if (fileExt === "docx") {
-        // Dynamically import mammoth only in the browser
         const mammoth = await import("mammoth");
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         setText(result.value);
       } else if (fileExt === "pdf") {
-        // Dynamically import PDF.js only in the browser
         const pdfjsLib = await import("pdfjs-dist");
-        
-        // Note: pdfjs-dist v4 uses .mjs for the worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
         
         const arrayBuffer = await file.arrayBuffer();
@@ -64,7 +54,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to extract text from document. Ensure the file is not corrupted or password protected.");
+      setError("Failed to extract text from document. Ensure the file is not corrupted.");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -76,8 +66,7 @@ export default function Home() {
     setError("");
 
     try {
-      // Updated to correctly match your Vercel environment variable
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,7 +101,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* State 1: Input & File Upload */}
         {step === "idle" && (
           <section className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between mb-4">
@@ -130,14 +118,14 @@ export default function Home() {
                   className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-black transition-colors"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload .txt File
+                  Upload Document
                 </button>
               </div>
             </div>
             
             <textarea
               className="w-full h-40 p-4 border rounded-md focus:ring-2 focus:ring-black outline-none resize-none"
-              placeholder="Paste the academic paragraph here, or upload a text file..."
+              placeholder="Paste the academic paragraph here, or upload a .txt, .docx, or .pdf file..."
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
@@ -154,7 +142,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* State 2: Dedicated Loading UI */}
         {step === "evaluating" && (
           <section className="bg-white p-12 rounded-xl shadow-sm border flex flex-col items-center justify-center text-center space-y-4">
             <Loader2 className="w-10 h-10 animate-spin text-black" />
@@ -165,7 +152,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* State 3: Final Markdown Output */}
         {step === "complete" && (
           <section className="bg-green-50 border border-green-200 p-6 rounded-xl">
             <h2 className="text-xl font-semibold text-green-900 mb-6 flex items-center gap-2">
@@ -193,4 +179,4 @@ export default function Home() {
       </div>
     </main>
   );
-}}
+}
