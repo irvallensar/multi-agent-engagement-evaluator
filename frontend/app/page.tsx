@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, CheckCircle, Loader2, Upload } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import * as mammoth from "mammoth";
+
+// Set up PDF.js worker
+import * as pdfjsLib from "pdfjs-dist";
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function Home() {
   const [step, setStep] = useState<"idle" | "evaluating" | "complete">("idle");
@@ -11,26 +16,50 @@ export default function Home() {
   const [scorecard, setScorecard] = useState("");
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   useEffect(() => {
     setThreadId(`session-${Math.random().toString(36).substring(2, 9)}`);
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    try {
-      // Read the file locally in the browser and populate the text area
+  const file = e.target.files?.[0];
+  if (!file) return;
+  setError("");
+
+  const fileExt = file.name.split(".").pop()?.toLowerCase();
+
+  try {
+    if (fileExt === "txt" || fileExt === "md") {
       const extractedText = await file.text();
       setText(extractedText);
-    } catch (err) {
-      setError("Failed to read file. Please use a .txt or .md file.");
+    } else if (fileExt === "docx") {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      setText(result.value);
+    } else if (fileExt === "pdf") {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(" ");
+        fullText += pageText + "\n\n";
+      }
+      setText(fullText.trim());
+    } else {
+      setError("Unsupported file type. Please upload a .txt, .docx, or .pdf file.");
     }
-    
-    // Reset the input so the same file can be uploaded again if needed
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  } catch (err) {
+    setError("Failed to extract text from document.");
+  }
+
+  if (fileInputRef.current) fileInputRef.current.value = "";
+};
 
   const handleEvaluate = async () => {
     if (!text.trim()) return;
@@ -39,7 +68,7 @@ export default function Home() {
 
     try {
       // Updated to correctly match your Vercel environment variable
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/evaluate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +111,7 @@ export default function Home() {
               <div>
                 <input 
                   type="file" 
-                  accept=".txt,.md" 
+                  accept=".txt,.md,.docx,.pdf" 
                   className="hidden" 
                   ref={fileInputRef} 
                   onChange={handleFileUpload} 
