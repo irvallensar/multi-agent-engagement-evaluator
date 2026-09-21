@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Play, CheckCircle, Loader2, Upload } from "lucide-react";
+import { Play, CheckCircle, Loader2, Upload, Target } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export default function Home() {
@@ -55,7 +55,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to extract text from document. Ensure the file is not corrupted.");
+      setError("Failed to extract text from document. Ensure the file is not corrupted or password protected.");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -65,9 +65,10 @@ export default function Home() {
     if (!text.trim()) return;
     setStep("evaluating");
     setError("");
+    setTags([]); // Clear previous tags
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/evaluate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -91,7 +92,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-50 p-8 text-neutral-900 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
-        
         <header className="border-b pb-4">
           <h1 className="text-3xl font-bold tracking-tight">Composite AI Evaluator</h1>
           <p className="text-sm text-neutral-500 mt-1">Automated Discourse Analysis • Session: {threadId}</p>
@@ -120,14 +120,14 @@ export default function Home() {
                   className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-black transition-colors"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload Document
+                  Upload Document (.txt, .pdf, .docx)
                 </button>
               </div>
             </div>
             
             <textarea
               className="w-full h-40 p-4 border rounded-md focus:ring-2 focus:ring-black outline-none resize-none"
-              placeholder="Paste the academic paragraph here, or upload a .txt, .docx, or .pdf file..."
+              placeholder="Paste the academic paragraph here, or upload a document..."
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
@@ -160,9 +160,36 @@ export default function Home() {
               <CheckCircle className="w-6 h-6 text-green-600" />
               Final Aggregated Scorecard
             </h2>
+            
             <div className="bg-white p-8 rounded-md border text-neutral-800 prose prose-neutral max-w-none">
               <ReactMarkdown>{scorecard}</ReactMarkdown>
             </div>
+
+            {tags.length > 0 && (
+              <div className="mt-8 border-t border-green-200 pt-6">
+                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-green-600" />
+                  Discourse Span Analysis
+                </h3>
+                <div className="space-y-2 text-sm font-mono">
+                  {tags.map((tag, index) => (
+                    <div 
+                      key={index} 
+                      className={`p-3 rounded-md border ${
+                        tag.toUpperCase().includes("HETEROGLOSSIC") 
+                          ? "bg-blue-50 border-blue-200 text-blue-900" 
+                          : tag.toUpperCase().includes("MONOGLOSSIC") 
+                          ? "bg-orange-50 border-orange-200 text-orange-900"
+                          : "bg-white border-gray-200 text-gray-800"
+                      }`}
+                    >
+                      {tag}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => {
@@ -177,7 +204,6 @@ export default function Home() {
             </div>
           </section>
         )}
-
       </div>
     </main>
   );
