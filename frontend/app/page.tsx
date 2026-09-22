@@ -79,6 +79,7 @@ export default function Home() {
       
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight(); // Gets A4 page height
       
       const img = new window.Image();
       img.src = dataUrl;
@@ -86,9 +87,22 @@ export default function Home() {
         img.onload = resolve;
       });
 
-      const pdfHeight = (img.height * pdfWidth) / img.width;
+      const imgHeightInMm = (img.height * pdfWidth) / img.width;
+      let heightLeft = imgHeightInMm;
+      let position = 0;
 
-      pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+      // Print first page
+      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
+      heightLeft -= pageHeight;
+
+      // Loop to create additional pages if the content is too long
+      while (heightLeft > 0) {
+        position -= pageHeight; // Shift the image up by exactly one page height
+        pdf.addPage();
+        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF", err);
