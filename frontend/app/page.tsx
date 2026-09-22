@@ -69,41 +69,18 @@ export default function Home() {
     setIsExporting(true);
     
     try {
-      const htmlToImage = await import("html-to-image");
-      const { jsPDF } = await import("jspdf");
-
-      const dataUrl = await htmlToImage.toPng(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2
-      });
+      const html2pdf = (await import("html2pdf.js")).default;
       
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight(); // Gets A4 page height
-      
-      const img = new window.Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
+      // Bypasses the strict TypeScript compiler error
+      const opt: any = {
+        margin:       15,
+        filename:     `Evaluation_Scorecard_${threadId}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
 
-      const imgHeightInMm = (img.height * pdfWidth) / img.width;
-      let heightLeft = imgHeightInMm;
-      let position = 0;
-
-      // Print first page
-      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
-      heightLeft -= pageHeight;
-
-      // Loop to create additional pages if the content is too long
-      while (heightLeft > 0) {
-        position -= pageHeight; // Shift the image up by exactly one page height
-        pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
+      await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error("Failed to generate PDF", err);
       setError("Failed to generate PDF document.");
@@ -217,14 +194,14 @@ export default function Home() {
                 <ReactMarkdown>{scorecard}</ReactMarkdown>
               </div>
 
-              {tags.length > 0 && (
-                <div className="mt-8 border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-green-600" />
-                    Discourse Span Analysis
-                  </h3>
-                  <div className="space-y-2 text-sm font-mono">
-                    {tags.map((tag, index) => (
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-green-600" />
+                  Discourse Span Analysis
+                </h3>
+                <div className="space-y-2 text-sm font-mono">
+                  {tags && tags.length > 0 ? (
+                    tags.map((tag, index) => (
                       <div 
                         key={index} 
                         className={`p-3 rounded-md border ${
@@ -237,10 +214,14 @@ export default function Home() {
                       >
                         {tag}
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="p-3 rounded-md border bg-gray-50 border-gray-200 text-gray-800">
+                      No heteroglossic or monoglossic markers exceeded the confidence threshold.
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-4">
