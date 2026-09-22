@@ -11,6 +11,7 @@ from transformers import pipeline
 class EvaluationState(TypedDict):
     academic_text: str
     critiques: Annotated[list[str], operator.add]
+    tags: list[str]  # Restored: FastAPI requires this key to send data to React
     final_scorecard: str
     status: str
 
@@ -26,7 +27,7 @@ guardrail_prompt = PromptTemplate.from_template(
 guardrail_chain = guardrail_prompt | llm
 
 # Load local PyTorch sequence tagger
-sequence_tagger = pipeline("text-classification", model="./your-local-da-roberta-path", return_all_scores=True)
+sequence_tagger = pipeline("text-classification", model="./model-best", return_all_scores=True)
 
 # ==========================================
 # 3. NODE FUNCTIONS
@@ -58,17 +59,18 @@ def engagement_critic(state: EvaluationState):
     # Sort predictions by highest confidence score
     sorted_preds = sorted(results[0], key=lambda x: x['score'], reverse=True)
     
-    # Grab the top 3 labels that pass the 0.1 threshold, regardless of their specific name
-    for prediction in sorted_preds[:3]:
-        label = prediction['label'].upper()
+    # Grab all labels that pass the 0.1 threshold
+    for prediction in sorted_preds:
         score = prediction['score']
         if score > 0.1:
-            detected_tags.append(f"{label}: Confirmed in text span (Confidence: {score:.2f})")
+            label = prediction['label'].upper()
+            detected_tags.append(f"{label} (Confidence: {score:.2f})")
     
-    if not detected_tags:
-        return {"critiques": []}
-        
-    return {"critiques": detected_tags}
+    # Pass data to BOTH the LLM (critiques) and the frontend UI (tags)
+    return {
+        "critiques": detected_tags if detected_tags else [],
+        "tags": detected_tags
+    }
 
 
 def aggregator(state: EvaluationState):
