@@ -52,19 +52,19 @@ def rhetorical_critic(state: EvaluationState):
 
 def engagement_critic(state: EvaluationState):
     text = state["academic_text"]
-    
-    # Process text through the PyTorch model
     results = sequence_tagger(text)
     
-    # Extract tags (threshold lowered to 0.1 to force tag visibility)
     detected_tags = []
-    for prediction in results[0]:
-        if prediction['score'] > 0.1:
-            label = prediction['label'].upper()
-            if "HETEROGLOSSIC" in label or "MONOGLOSSIC" in label:
-                detected_tags.append(f"{label}: Confirmed in text span (Confidence: {prediction['score']:.2f})")
+    # Sort predictions by highest confidence score
+    sorted_preds = sorted(results[0], key=lambda x: x['score'], reverse=True)
     
-    # Ensure empty arrays are handled if no tags are found
+    # Grab the top 3 labels that pass the 0.1 threshold, regardless of their specific name
+    for prediction in sorted_preds[:3]:
+        label = prediction['label'].upper()
+        score = prediction['score']
+        if score > 0.1:
+            detected_tags.append(f"{label}: Confirmed in text span (Confidence: {score:.2f})")
+    
     if not detected_tags:
         return {"critiques": []}
         

@@ -45,9 +45,7 @@ export default function Home() {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          const pageText = content.items
-            .map((item: any) => item.str)
-            .join(" ");
+          const pageText = content.items.map((item: any) => item.str).join(" ");
           fullText += pageText + "\n\n";
         }
         setText(fullText.trim());
@@ -69,18 +67,40 @@ export default function Home() {
     setIsExporting(true);
     
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      
-      // Bypasses the strict TypeScript compiler error
-      const opt: any = {
-        margin:       15,
-        filename:     `Evaluation_Scorecard_${threadId}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
+      const htmlToImage = await import("html-to-image");
+      const { jsPDF } = await import("jspdf");
 
-      await html2pdf().set(opt).from(element).save();
+      // Uses the browser's native SVG renderer, completely avoiding the lab() color crash
+      const dataUrl = await htmlToImage.toPng(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2
+      });
+      
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      const img = new window.Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+
+      const imgHeightInMm = (img.height * pdfWidth) / img.width;
+      let heightLeft = imgHeightInMm;
+      let position = 0;
+
+      // Print first page
+      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
+      heightLeft -= pageHeight;
+
+      // Slice the image into additional pages if it overflows A4 height
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF", err);
       setError("Failed to generate PDF document.");
@@ -204,20 +224,14 @@ export default function Home() {
                     tags.map((tag, index) => (
                       <div 
                         key={index} 
-                        className={`p-3 rounded-md border ${
-                          tag.toUpperCase().includes("HETEROGLOSSIC") 
-                            ? "bg-blue-50 border-blue-200 text-blue-900" 
-                            : tag.toUpperCase().includes("MONOGLOSSIC") 
-                            ? "bg-orange-50 border-orange-200 text-orange-900"
-                            : "bg-gray-50 border-gray-200 text-gray-800"
-                        }`}
+                        className="p-3 rounded-md border bg-blue-50 border-blue-200 text-blue-900"
                       >
                         {tag}
                       </div>
                     ))
                   ) : (
                     <div className="p-3 rounded-md border bg-gray-50 border-gray-200 text-gray-800">
-                      No heteroglossic or monoglossic markers exceeded the confidence threshold.
+                      No markers exceeded the confidence threshold.
                     </div>
                   )}
                 </div>
