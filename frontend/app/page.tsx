@@ -69,23 +69,26 @@ export default function Home() {
     setIsExporting(true);
     
     try {
-      // Dynamic imports prevent Next.js SSR build errors
-      const html2canvas = (await import("html2canvas")).default;
+      const htmlToImage = await import("html-to-image");
       const { jsPDF } = await import("jspdf");
 
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: "#ffffff"
+      const dataUrl = await htmlToImage.toPng(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2
       });
       
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      const img = new window.Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      const pdfHeight = (img.height * pdfWidth) / img.width;
+
+      pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF", err);
@@ -195,7 +198,6 @@ export default function Home() {
               Final Aggregated Scorecard
             </h2>
             
-            {/* Target Container for PDF Export */}
             <div id="scorecard-container" className="bg-white p-8 rounded-md border">
               <div className="text-neutral-800 prose prose-neutral max-w-none">
                 <ReactMarkdown>{scorecard}</ReactMarkdown>
