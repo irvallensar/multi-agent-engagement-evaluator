@@ -26,8 +26,10 @@ guardrail_prompt = PromptTemplate.from_template(
 )
 guardrail_chain = guardrail_prompt | llm
 
-# Load local spaCy spancat model natively
-nlp = spacy.load("./model-best")
+# OVERRIDE THE BAKED-IN THRESHOLD
+# Forces spaCy to bypass the 0.5 default and expose all markers with at least 5% confidence
+custom_config = {"components": {"spancat": {"threshold": 0.05}}}
+nlp = spacy.load("./model-best", config=custom_config)
 
 # ==========================================
 # 3. NODE FUNCTIONS
@@ -65,8 +67,12 @@ def engagement_critic(state: EvaluationState):
     # Filter out duplicate entries
     detected_tags = list(set(detected_tags))
     
+    if not detected_tags:
+        # Concrete debug fallback to prove the model analyzed the text
+        detected_tags = ["NO MARKERS FOUND: Model confidence for all spans was below 5%."]
+    
     return {
-        "critiques": detected_tags if detected_tags else [],
+        "critiques": detected_tags,
         "tags": detected_tags
     }
 
