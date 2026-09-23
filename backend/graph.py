@@ -1,9 +1,9 @@
 import operator
+import spacy
 from typing import Annotated, TypedDict
 from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
-from transformers import pipeline
 
 # ==========================================
 # 1. LANGGRAPH STATE
@@ -11,7 +11,7 @@ from transformers import pipeline
 class EvaluationState(TypedDict):
     academic_text: str
     critiques: Annotated[list[str], operator.add]
-    tags: list[str]  # Restored: FastAPI requires this key to send data to React
+    tags: list[str]
     final_scorecard: str
     status: str
 
@@ -26,8 +26,8 @@ guardrail_prompt = PromptTemplate.from_template(
 )
 guardrail_chain = guardrail_prompt | llm
 
-# Load local PyTorch sequence tagger
-sequence_tagger = pipeline("text-classification", model="./model-best", return_all_scores=True)
+# Load local spaCy spancat model natively
+nlp = spacy.load("./model-best")
 
 # ==========================================
 # 3. NODE FUNCTIONS
@@ -53,20 +53,18 @@ def rhetorical_critic(state: EvaluationState):
 
 def engagement_critic(state: EvaluationState):
     text = state["academic_text"]
-    results = sequence_tagger(text)
+    doc = nlp(text)
     
     detected_tags = []
-    # Sort predictions by highest confidence score
-    sorted_preds = sorted(results[0], key=lambda x: x['score'], reverse=True)
     
-    # Grab all labels that pass the 0.1 threshold
-    for prediction in sorted_preds:
-        score = prediction['score']
-        if score > 0.1:
-            label = prediction['label'].upper()
-            detected_tags.append(f"{label} (Confidence: {score:.2f})")
+    # Extract predicted spans from spaCy's doc.spans dictionary
+    for span_group in doc.spans.values():
+        for span in span_group:
+            detected_tags.append(f"{span.label_.upper()}: '{span.text}'")
     
-    # Pass data to BOTH the LLM (critiques) and the frontend UI (tags)
+    # Filter out duplicate entries
+    detected_tags = list(set(detected_tags))
+    
     return {
         "critiques": detected_tags if detected_tags else [],
         "tags": detected_tags
