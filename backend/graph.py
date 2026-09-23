@@ -28,7 +28,7 @@ guardrail_chain = guardrail_prompt | llm
 
 # OVERRIDE THE BAKED-IN THRESHOLD
 # Forces spaCy to bypass the 0.5 default and expose all markers with at least 5% confidence
-custom_config = {"components": {"spancat": {"threshold": 0.05}}}
+custom_config = {"components": {"spancat": {"threshold": 0.0}}}
 nlp = spacy.load("./model-best", config=custom_config)
 
 # ==========================================
