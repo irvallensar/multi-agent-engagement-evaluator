@@ -1,12 +1,11 @@
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from graph import builder 
+from fastapi.middleware.cors import CORSMiddleware
+from graph import builder
 
 app = FastAPI()
 
-# Prevents the preflight/CORS error from the browser
+# Configures access for the Cloudflare tunnel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,19 +14,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class EvaluationRequest(BaseModel):
-    thread_id: str
+class EvalRequest(BaseModel):
     text: str
+    thread_id: str
 
 @app.post("/evaluate")
-async def evaluate_endpoint(request: EvaluationRequest):
-    state = builder.invoke({"academic_text": request.text, "critiques": [], "status": ""})
-    
-    return {
-        "scorecard": state.get("final_scorecard", ""),
-        "tags": state.get("critiques", []) 
-    }
-
-# Prevents the container from instantly exiting and binds it to the correct port
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+async def evaluate_text(req: EvalRequest):
+    try:
+        result = builder.invoke({
+            "academic_text": req.text,
+            "critiques": [],
+            "tags": [],
+            "final_scorecard": "",
+            "status": ""
+        })
+        
+        # Explicitly maps the tags array into the JSON response for Next.js
+        return {
+            "scorecard": result.get("final_scorecard", ""),
+            "tags": result.get("tags", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
