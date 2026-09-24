@@ -11,7 +11,6 @@ export default function Home() {
   const [scorecard, setScorecard] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,53 +59,9 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleExportPDF = async () => {
-    const element = document.getElementById("scorecard-container");
-    if (!element) return;
-    
-    setIsExporting(true);
-    
-    try {
-      const htmlToImage = await import("html-to-image");
-      const { jsPDF } = await import("jspdf");
-
-      // Uses the browser's native SVG renderer, completely avoiding the lab() color crash
-      const dataUrl = await htmlToImage.toPng(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2
-      });
-      
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      const img = new window.Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => { img.onload = resolve; });
-
-      const imgHeightInMm = (img.height * pdfWidth) / img.width;
-      let heightLeft = imgHeightInMm;
-      let position = 0;
-
-      // Print first page
-      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
-      heightLeft -= pageHeight;
-
-      // Slice the image into additional pages if it overflows A4 height
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeightInMm);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`Evaluation_Scorecard_${threadId}.pdf`);
-    } catch (err) {
-      console.error("Failed to generate PDF", err);
-      setError("Failed to generate PDF document.");
-    } finally {
-      setIsExporting(false);
-    }
+  const handleExportPDF = () => {
+    // Triggers the browser's native, flawless print-to-PDF engine
+    window.print();
   };
 
   const handleEvaluate = async () => {
@@ -140,19 +95,19 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-50 p-8 text-neutral-900 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
-        <header className="border-b pb-4">
+        <header className="border-b pb-4 print:hidden">
           <h1 className="text-3xl font-bold tracking-tight">Composite AI Evaluator</h1>
           <p className="text-sm text-neutral-500 mt-1">Automated Discourse Analysis • Session: {threadId}</p>
         </header>
 
         {error && (
-          <div className="p-4 bg-red-100 text-red-700 rounded-md border border-red-200">
+          <div className="p-4 bg-red-100 text-red-700 rounded-md border border-red-200 print:hidden">
             {error}
           </div>
         )}
 
         {step === "idle" && (
-          <section className="bg-white p-6 rounded-xl shadow-sm border">
+          <section className="bg-white p-6 rounded-xl shadow-sm border print:hidden">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Target Text</h2>
               <div>
@@ -193,7 +148,7 @@ export default function Home() {
         )}
 
         {step === "evaluating" && (
-          <section className="bg-white p-12 rounded-xl shadow-sm border flex flex-col items-center justify-center text-center space-y-4">
+          <section className="bg-white p-12 rounded-xl shadow-sm border flex flex-col items-center justify-center text-center space-y-4 print:hidden">
             <Loader2 className="w-10 h-10 animate-spin text-black" />
             <h2 className="text-xl font-semibold">Evaluating Discourse Markers...</h2>
             <p className="text-neutral-500 max-w-sm">
@@ -203,20 +158,20 @@ export default function Home() {
         )}
 
         {step === "complete" && (
-          <section className="bg-green-50 border border-green-200 p-6 rounded-xl">
-            <h2 className="text-xl font-semibold text-green-900 mb-6 flex items-center gap-2">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+          <section className="bg-green-50 border border-green-200 p-6 rounded-xl print:border-none print:bg-white print:p-0">
+            <h2 className="text-xl font-semibold text-green-900 mb-6 flex items-center gap-2 print:text-black">
+              <CheckCircle className="w-6 h-6 text-green-600 print:hidden" />
               Final Aggregated Scorecard
             </h2>
             
-            <div id="scorecard-container" className="bg-white p-8 rounded-md border">
+            <div id="scorecard-container" className="bg-white p-8 rounded-md border print:border-none print:p-0">
               <div className="text-neutral-800 prose prose-neutral max-w-none">
                 <ReactMarkdown>{scorecard}</ReactMarkdown>
               </div>
 
               <div className="mt-8 border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2 print:text-black">
+                  <Target className="w-5 h-5 text-green-600 print:hidden" />
                   Discourse Span Analysis
                 </h3>
                 <div className="space-y-2 text-sm font-mono">
@@ -224,13 +179,13 @@ export default function Home() {
                     tags.map((tag, index) => (
                       <div 
                         key={index} 
-                        className="p-3 rounded-md border bg-blue-50 border-blue-200 text-blue-900"
+                        className="p-3 rounded-md border bg-blue-50 border-blue-200 text-blue-900 print:border-gray-300 print:bg-transparent print:text-black"
                       >
                         {tag}
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 rounded-md border bg-gray-50 border-gray-200 text-gray-800">
+                    <div className="p-3 rounded-md border bg-gray-50 border-gray-200 text-gray-800 print:border-gray-300 print:bg-transparent print:text-black">
                       No markers exceeded the confidence threshold.
                     </div>
                   )}
@@ -238,14 +193,14 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-4">
+            {/* print:hidden ensures these buttons disappear entirely on the downloaded PDF */}
+            <div className="mt-6 flex justify-end gap-4 print:hidden">
               <button
                 onClick={handleExportPDF}
-                disabled={isExporting}
-                className="flex items-center gap-2 bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 bg-white border text-black px-6 py-2 rounded-md hover:bg-neutral-50 transition-colors"
               >
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {isExporting ? "Generating PDF..." : "Download PDF"}
+                <Download className="w-4 h-4" />
+                Download PDF
               </button>
               <button
                 onClick={() => {

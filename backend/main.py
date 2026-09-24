@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from graph import builder
+import spacy
 
 app = FastAPI()
 
@@ -14,6 +15,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+print("Loading spaCy model natively into API layer...")
+nlp = spacy.load("./model-best")
+
 class EvalRequest(BaseModel):
     text: str
     thread_id: str
@@ -21,6 +25,7 @@ class EvalRequest(BaseModel):
 @app.post("/evaluate")
 async def evaluate_text(req: EvalRequest):
     try:
+        # 1. Run LangGraph ONLY to generate the LLM scorecard
         result = builder.invoke({
             "academic_text": req.text,
             "critiques": [],
@@ -29,10 +34,21 @@ async def evaluate_text(req: EvalRequest):
             "status": ""
         })
         
-        # Explicitly maps the tags array into the JSON response for Next.js
+        # 2. Run the PyTorch model directly in FastAPI, bypassing LangGraph state wipe
+        doc = nlp(req.text)
+        detected_tags = []
+        
+        for group_name, span_group in doc.spans.items():
+            for span in span_group:
+                # Fallback in case the span label is empty or just named 'sc'
+                raw_label = span.label_.upper() if span.label_ else group_name.upper()
+                label = "DISCOURSE MARKER" if raw_label == "SC" else raw_label
+                detected_tags.append(f"{label}: '{span.text}'")
+                
+        # 3. Send BOTH to the frontend simultaneously
         return {
             "scorecard": result.get("final_scorecard", ""),
-            "tags": result.get("tags", [])
+            "tags": list(set(detected_tags))
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
