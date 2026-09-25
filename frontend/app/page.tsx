@@ -96,7 +96,7 @@ export default function Home() {
     <main className="min-h-screen bg-neutral-50 p-8 text-neutral-900 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="border-b pb-4 print:hidden">
-          <h1 className="text-3xl font-bold tracking-tight">Composite AI Evaluator</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Multi-Agent Engagement Evaluator</h1>
           <p className="text-sm text-neutral-500 mt-1">Automated Discourse Analysis • Session: {threadId}</p>
         </header>
 
