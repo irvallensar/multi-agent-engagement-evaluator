@@ -1,4 +1,4 @@
-# Multi-Agent Engagement Evaluator
+# Multi-Agent Academic Engagement Evaluator
 
 A hybrid Natural Language Processing (NLP) pipeline designed to perform highly accurate, discourse-level rhetorical analysis of academic texts. This system combines a generative multi-agent LLM architecture with a discriminative sequence tagger to automate academic critique and extract specific Appraisal Framework discourse markers.
 
