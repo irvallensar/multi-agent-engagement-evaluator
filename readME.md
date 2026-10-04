@@ -74,7 +74,8 @@ graph TD
     
     %% The Merge & Return
     Compiler -->|JSON Payload: 100% Retention| Tunnel
-    Tunnel -->|Response 200 OK| UI
+    Tunnel -->|Response 
+    200 OK| UI
     UI -->|Visualizes Markers| PDF
 
 ```
