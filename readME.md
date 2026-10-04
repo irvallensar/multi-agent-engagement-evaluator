@@ -51,7 +51,8 @@ graph TD
 
     %% Client to Network
     Input -->|File Parse| UI
-    UI -->|POST /evaluate| Tunnel
+    UI -->|POST /
+    evaluate| Tunnel
     
     %% Network to Backend
     Tunnel -->|Bypasses 100s Timeout| API
